@@ -127,7 +127,7 @@ String getUmiditate()
   ret = String(r);
   return ret;
 }
-
+ 
 bool getIR_SW()
 {
   return digitalRead(IR_SWPin);
