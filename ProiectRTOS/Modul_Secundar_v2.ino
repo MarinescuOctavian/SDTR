@@ -66,7 +66,7 @@ void citireButon(void *pvParameters)
       flagButon = 0;
       else
       flagButon = 1;
-      delay(100);
+      vTaskDelay(100/portTICK_PERIOD_MS);
     }
 }
 void citireSenzori(void *pvParameters)
@@ -91,7 +91,7 @@ void citireSenzori(void *pvParameters)
         flagTrimitere = 1;
       }
     }
-    delay(2000);
+    vTaskDelay(2000/portTICK_PERIOD_MS);
   }
 }
 
