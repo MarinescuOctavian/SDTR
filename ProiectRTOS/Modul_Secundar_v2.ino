@@ -4,8 +4,52 @@
 #include <Ethernet.h>
 #include <dht.h>
 
+
+class FIFO //memorie stack fifo
+{
+ private:
+          int index;
+          String s[10];
+
+ public:
+          String pop()
+          {
+            if(!isEmpty())
+            {
+            index--;
+            return s[index+1];
+            }
+            else
+            return "FIFO_EMPTY";
+          }
+          bool push(String q)
+          {
+            if(index<9)
+            {
+            index++;
+            s[index]=q;
+            return true;
+            }
+            else 
+            return false;
+          }
+          bool isEmpty()
+          {
+            if(index==-1)
+            return true;
+            else
+            return false;
+          }
+          FIFO() //constructor
+          {
+            index = 0;
+            for(int i = 0;i<10;i++)
+            s[i] = "";
+          }       
+};
+
 #define DHT11_PIN 7
-#define fumPin A0
+#define gazPin A0
 #define IR_SWPin 3
 #define butonPin 4
 byte serverDistant[] = { 10, 0, 0, 1 }; //definire IP server distant (modul principal)
@@ -18,13 +62,12 @@ dht DHT;
 void citireSenzori(void *pvParameters);
 void citireButon(void *pvParameters);
 int flagButon;
-int flagTrimitere = 0;
-String mesajdeTrimis = "";
+FIFO coada_de_mesaje;
 
 
 void setup() {
     Ethernet.begin(mac, ip, gateway, subnet);
-
+  // put your setup code here, to run once:
     xTaskCreate(
     citireSenzori
     ,  "Senzori"   // A name just for humans
@@ -67,7 +110,7 @@ void citireButon(void *pvParameters)
       flagButon = 0;
       else
       flagButon = 1;
-      vTaskDelay(100/portTICK_PERIOD_MS);
+      vTaskDelay(100);
     }
 }
 void citireSenzori(void *pvParameters)
@@ -78,7 +121,7 @@ void citireSenzori(void *pvParameters)
     if(flagButon == 1)
     {
       String deTrimis = "*";
-      deTrimis += getSenzorFum();
+      deTrimis += getSenzorGaz();
       deTrimis += "*";
       deTrimis += getUmiditate();
       deTrimis += "*";
@@ -86,13 +129,9 @@ void citireSenzori(void *pvParameters)
         deTrimis += "1#";
       else
         deTrimis += "0#";
-      if(flagTrimitere == 0) //flagTrimitere==0 asteapta finalizare trimiterii mesajului    
-      {    
-        mesajdeTrimis = deTrimis;
-        flagTrimitere = 1;
-      }
+      coada_de_mesaje.push(deTrimis);
     }
-    vTaskDelay(2000/portTICK_PERIOD_MS);
+    vTaskDelay(2000);
   }
 }
 
@@ -101,22 +140,20 @@ void trimitereMesajETH(void *pvParameters)
   (void) pvParameters;
   for(;;)
   {
-    if(flagTrimitere == 1)
+    if(!coada_de_mesaje.isEmpty())
     {
       EthernetClient client;                  
       if(client.connect(serverDistant,23))
-        client.print(mesajdeTrimis); // mesajdeTrimis variabila globala
+        client.print(coada_de_mesaje.pop()); // mesajdeTrimis variabila globala
         client.stop();
-        flagTrimitere = 0;
-        mesajdeTrimis = "";
     }
   }
 }
-String getSenzorFum()
+String getSenzorGaz()
 {
-    int fum = analogRead(fumPin);
+    int gaz = analogRead(gazPin);
     String ret;
-    ret = String(fum);
+    ret = String(gaz);
     return ret;
 }
 
@@ -128,7 +165,7 @@ String getUmiditate()
   ret = String(r);
   return ret;
 }
- 
+
 bool getIR_SW()
 {
   return digitalRead(IR_SWPin);
