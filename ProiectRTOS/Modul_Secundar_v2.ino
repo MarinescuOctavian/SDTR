@@ -7,6 +7,7 @@
 #define DHT11_PIN 7
 #define fumPin A0
 #define IR_SWPin 3
+#define butonPin 4
 byte serverDistant[] = { 10, 0, 0, 1 }; //definire IP server distant (modul principal)
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xE2 };  
 byte ip[] = { 10, 0, 0, 3 };    
@@ -62,7 +63,7 @@ void citireButon(void *pvParameters)
     (void) pvParameters;
     for(;;)
     {
-      if(digitalRead(IR_SWPin) == 0)
+      if(digitalRead(butonPin) == 0)
       flagButon = 0;
       else
       flagButon = 1;
