@@ -16,8 +16,12 @@ class FIFO //memorie stack fifo
           {
             if(!isEmpty())
             {
-            index--;
-            return s[index+1];
+              String ret;
+              ret = s[0];
+              for(int i =0;i<index;i++)
+              s[i]=s[i+1];
+              index--;
+              return ret;
             }
             else
             return "FIFO_EMPTY";
