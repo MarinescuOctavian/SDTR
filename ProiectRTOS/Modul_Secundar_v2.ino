@@ -1,56 +1,22 @@
 #include <Arduino_FreeRTOS.h>
+#include <queue.h>
+
+void citireSenzori(void *pvParameters);
+void citireButon(void *pvParameters);
+void trimitereMesajETH(void *pvParameters);
 
 #include <SPI.h>
 #include <Ethernet.h>
 #include <dht.h>
 
 
-class FIFO //memorie stack fifo
+struct mesaj
 {
- private:
-          int index;
-          String s[10];
-
- public:
-          String pop()
-          {
-            if(!isEmpty())
-            {
-              String ret;
-              ret = s[0];
-              for(int i =0;i<index;i++)
-              s[i]=s[i+1];
-              index--;
-              return ret;
-            }
-            else
-            return "FIFO_EMPTY";
-          }
-          bool push(String q)
-          {
-            if(index<9)
-            {
-            index++;
-            s[index]=q;
-            return true;
-            }
-            else 
-            return false;
-          }
-          bool isEmpty()
-          {
-            if(index==-1)
-            return true;
-            else
-            return false;
-          }
-          FIFO() //constructor
-          {
-            index = 0;
-            for(int i = 0;i<10;i++)
-            s[i] = "";
-          }       
+  String s;
 };
+struct mesaj mesaj;
+
+QueueHandle_t xQueue1 = xQueueCreate( 10, sizeof( mesaj ) );
 
 #define DHT11_PIN 7
 #define gazPin A0
@@ -63,21 +29,22 @@ byte gateway[] = { 10, 0, 0, 1 };
 byte subnet[] = { 255, 255, 255, 0 };
 dht DHT;
 
-void citireSenzori(void *pvParameters);
-void citireButon(void *pvParameters);
+
+
 int flagButon;
-FIFO coada_de_mesaje;
 
 
 void setup() {
+  Serial.begin(115200);
     Ethernet.begin(mac, ip, gateway, subnet);
   // put your setup code here, to run once:
-    xTaskCreate(
+
+   xTaskCreate(
     citireSenzori
     ,  "Senzori"   // A name just for humans
     ,  128  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL );
 
     xTaskCreate(
@@ -87,21 +54,22 @@ void setup() {
     ,  NULL
     ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL );
-    
+   
     xTaskCreate(
     trimitereMesajETH
     ,  "ETH"   // A name just for humans
-    ,  128  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
-    ,  3  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL );    
-
-
+  vTaskStartScheduler();
+Serial.println("Setup - 1");
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  
 
 }
 
@@ -110,18 +78,21 @@ void citireButon(void *pvParameters)
     (void) pvParameters;
     for(;;)
     {
+      Serial.println("CitireButon");
       if(digitalRead(butonPin) == 0)
       flagButon = 0;
       else
       flagButon = 1;
-      vTaskDelay(100);
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 void citireSenzori(void *pvParameters)
 {
+
   (void) pvParameters;
   for(;;)
   {
+      Serial.println("CitireSenzori");
     if(flagButon == 1)
     {
       String deTrimis = "*";
@@ -133,24 +104,26 @@ void citireSenzori(void *pvParameters)
         deTrimis += "1#";
       else
         deTrimis += "0#";
-      coada_de_mesaje.push(deTrimis);
+        //mesaj.s = deTrimis;
+  xQueueSend(xQueue1,&deTrimis, ( TickType_t )10);
     }
-    vTaskDelay(2000);
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
   }
 }
 
 void trimitereMesajETH(void *pvParameters)
 {
-  (void) pvParameters;
+        (void) pvParameters;
+
+
   for(;;)
   {
-    if(!coada_de_mesaje.isEmpty())
-    {
+  Serial.println("ETH");
       EthernetClient client;                  
       if(client.connect(serverDistant,23))
-        client.print(coada_de_mesaje.pop()); // mesajdeTrimis variabila globala
+        client.print(xQueueReceive( xQueue1, &mesaj.s, (TickType_t)10)); // 
         client.stop();
-    }
+        vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 String getSenzorGaz()
