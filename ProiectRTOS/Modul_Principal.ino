@@ -78,9 +78,9 @@ void checkMessage(void *pvParameters)
     senzorIR_SW+=s[i];i++;}
 
     bool val = false;
-    if(senzorGaz.toInt()<gazMinim && senzorGaz.toInt()>gazMaxim)
+    if(senzorGaz.toInt()<gazMinim || senzorGaz.toInt()>gazMaxim)
     val = true;
-    if(senzorUmiditate.toInt()<umiditateMinim && senzorUmiditate.toInt()>umiditateMaxim)
+    if(senzorUmiditate.toInt()<umiditateMinim || senzorUmiditate.toInt()>umiditateMaxim)
     val = true;
     if(senzorIR_SW.toInt() != IR_SWNormal)
     val = true;
