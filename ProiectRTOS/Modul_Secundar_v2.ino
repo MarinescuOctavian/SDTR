@@ -10,13 +10,8 @@ void trimitereMesajETH(void *pvParameters);
 #include <dht.h>
 
 
-struct mesaj
-{
-  String s;
-};
-struct mesaj mesaj;
 
-QueueHandle_t xQueue1 = xQueueCreate( 10, sizeof( mesaj ) );
+QueueHandle_t xQueue1 = xQueueCreate( 10, 15 );
 
 #define DHT11_PIN 7
 #define gazPin A0
@@ -58,11 +53,11 @@ void setup() {
     xTaskCreate(
     trimitereMesajETH
     ,  "ETH"   // A name just for humans
-    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater  //128 //2048
     ,  NULL
     ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL );    
-  vTaskStartScheduler();
+    vTaskStartScheduler();
 Serial.println("Setup - 1");
 
 }
@@ -93,9 +88,9 @@ void citireSenzori(void *pvParameters)
   for(;;)
   {
       Serial.println("CitireSenzori");
-    if(flagButon == 1)
+    if(flagButon == 0)
     {
-      String deTrimis = "*";
+      String deTrimis = "***";
       deTrimis += getSenzorGaz();
       deTrimis += "*";
       deTrimis += getUmiditate();
@@ -104,10 +99,12 @@ void citireSenzori(void *pvParameters)
         deTrimis += "1#";
       else
         deTrimis += "0#";
+        Serial.print("Senzori - deTrimis = ");
+        Serial.println(deTrimis);
         //mesaj.s = deTrimis;
   xQueueSend(xQueue1,&deTrimis, ( TickType_t )10);
     }
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    vTaskDelay(4000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -118,12 +115,18 @@ void trimitereMesajETH(void *pvParameters)
 
   for(;;)
   {
+    String s;
   Serial.println("ETH");
       EthernetClient client;                  
       if(client.connect(serverDistant,23))
-        client.print(xQueueReceive( xQueue1, &mesaj.s, (TickType_t)10)); // 
+      {
+        xQueueReceive( xQueue1, &s, (TickType_t)10);
+        Serial.print("ETH - deTrimis = ");
+        Serial.println(s);
+        client.print(s); // 
+      }
         client.stop();
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(2500 / portTICK_PERIOD_MS);
   }
 }
 String getSenzorGaz()
