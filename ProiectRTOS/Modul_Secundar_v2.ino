@@ -9,9 +9,15 @@ void trimitereMesajETH(void *pvParameters);
 #include <Ethernet.h>
 #include <dht.h>
 
+struct data
+{
+  int i;
+  char c[20];
+};
 
 
-QueueHandle_t xQueue1 = xQueueCreate( 10, 15 );
+
+QueueHandle_t xQueue1 = xQueueCreate( 10, sizeof(data) );
 
 #define DHT11_PIN 7
 #define gazPin A0
@@ -43,22 +49,23 @@ void setup() {
     ,  NULL );
 
     xTaskCreate(
+    trimitereMesajETH
+    ,  "ETH"   // A name just for humans
+    ,  128  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  NULL
+    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+    ,  NULL ); 
+       
+     xTaskCreate(
     citireButon
     ,  "Buton"   // A name just for humans
-    ,  128  // This stack size can be checked & adjusted by reading the Stack Highwater
+    ,  64  // This stack size can be checked & adjusted by reading the Stack Highwater
     ,  NULL
     ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
     ,  NULL );
    
-    xTaskCreate(
-    trimitereMesajETH
-    ,  "ETH"   // A name just for humans
-    ,  2048  // This stack size can be checked & adjusted by reading the Stack Highwater  //128 //2048
-    ,  NULL
-    ,  1  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-    ,  NULL );    
-    vTaskStartScheduler();
-Serial.println("Setup - 1");
+Serial.println("Setup");
+vTaskStartScheduler();
 
 }
 
@@ -73,12 +80,12 @@ void citireButon(void *pvParameters)
     (void) pvParameters;
     for(;;)
     {
-      Serial.println("CitireButon");
+      //Serial.println("CitireButon");
       if(digitalRead(butonPin) == 0)
       flagButon = 0;
       else
       flagButon = 1;
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 void citireSenzori(void *pvParameters)
@@ -90,7 +97,7 @@ void citireSenzori(void *pvParameters)
       Serial.println("CitireSenzori");
     if(flagButon == 0)
     {
-      String deTrimis = "***";
+      String deTrimis = "*";
       deTrimis += getSenzorGaz();
       deTrimis += "*";
       deTrimis += getUmiditate();
@@ -101,32 +108,37 @@ void citireSenzori(void *pvParameters)
         deTrimis += "0#";
         Serial.print("Senzori - deTrimis = ");
         Serial.println(deTrimis);
-        //mesaj.s = deTrimis;
-  xQueueSend(xQueue1,&deTrimis, ( TickType_t )10);
+        struct data mesaj;
+        
+        deTrimis.toCharArray(mesaj.c,deTrimis.length()+1);
+        xQueueSend(xQueue1,&mesaj, ( TickType_t )10);
     }
-    vTaskDelay(4000 / portTICK_PERIOD_MS);
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
   }
 }
 
 void trimitereMesajETH(void *pvParameters)
 {
         (void) pvParameters;
-
-
   for(;;)
   {
     String s;
-  Serial.println("ETH");
-      EthernetClient client;                  
+      EthernetClient client;    
+      struct data mesaj;
+      if(xQueueReceive( xQueue1, &mesaj, (TickType_t)10))
+      {
+        Serial.print("ETH: ");
+        Serial.println(mesaj.c);
       if(client.connect(serverDistant,23))
       {
-        xQueueReceive( xQueue1, &s, (TickType_t)10);
         Serial.print("ETH - deTrimis = ");
-        Serial.println(s);
-        client.print(s); // 
+        Serial.println(mesaj.c);
+        client.print(mesaj.c); // 
       }
         client.stop();
-        vTaskDelay(2500 / portTICK_PERIOD_MS);
+
+  }
+          vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 String getSenzorGaz()
