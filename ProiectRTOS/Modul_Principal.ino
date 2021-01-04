@@ -13,16 +13,17 @@
 #define alarmaPin 9
 //umiditate, fum, ir
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xE2 };  
-byte ip[] = { 10, 0, 0, 3 };    
-byte gateway[] = { 10, 0, 0, 1 };
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xE1 };  
+byte ip[] = { 10, 0, 0, 1 };    
+byte gateway[] = { 10, 0, 0, 10 };
 byte subnet[] = { 255, 255, 255, 0 };
 EthernetServer server(23);
-LiquidCrystal_I2C lcd(0x3F, 16, 2); 
+LiquidCrystal_I2C lcd(0x3F, 16, 2); //declararea variabilei pentru afis LCD
   
 
 
 void setup() {
+  Serial.begin(115200);
   pinMode(alarmaPin,OUTPUT);
   Ethernet.begin(mac, ip, gateway, subnet);
   server.begin();
@@ -47,24 +48,27 @@ void loop() {
 
 void checkMessage(void *pvParameters)
 {
+      Serial.println("test00");
       (void) pvParameters;
   for(;;)
   {
+
     String senzorUmiditate = "";
     String senzorGaz = "";
     String senzorIR_SW = "";
     EthernetClient client = server.available();  //Declarare variabila client pentru verificarea mesajelor trimise de module in mod aleator
+  if (client) {
     String s;
     while(client.available())
     {
       char c = client.read();
-      if((int)c>=33 && (int)c<=126) //exclud caracterele necitibile
+      if((int)c>=33 && (int)c<=126)
       s+=c;
     }
     client.stop();
-
+  Serial.println(s); 
       int i = 1;
-  while(s[i]!='*' && i<s.length()){ 
+  while(s[i]!='*' && i<s.length()){
     senzorGaz+=s[i];i++;}
   i++;
   while(s[i]!='*' && i<s.length()){
@@ -89,5 +93,6 @@ void checkMessage(void *pvParameters)
     lcd.print(senzorUmiditate);lcd.print(" ");
     lcd.print(senzorIR_SW);lcd.print(" ");  
   }
-  
+  vTaskDelay(100/ portTICK_PERIOD_MS);
+}
 }
